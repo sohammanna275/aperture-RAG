@@ -1,18 +1,18 @@
 import requests
 import psycopg
-
+import time
 from pipelines import run_direct, run_standard_rag, run_deep_rag
-
+from router import choose_route
 
 def main():
     print("Aperture — Adaptive RAG Router")
 
     route = input(
-        "Choose a pipeline [direct/standard/deep]: "
+        "Choose a pipeline [auto/direct/standard/deep]: "
     ).strip().lower()
 
-    if route not in ("direct", "standard", "deep"):
-        print("Please choose direct, standard, or deep.")
+    if route not in ("auto", "direct", "standard", "deep"):
+        print("Please choose auto, direct, standard, or deep.")
         return
 
     question = input("Ask a question: ").strip()
@@ -20,6 +20,18 @@ def main():
     if not question:
         print("Please enter a non-empty question.")
         return
+    
+    routing_seconds = 0.0
+
+    if route == "auto":
+        routing_start = time.perf_counter()
+        decision = choose_route(question)
+        routing_seconds = time.perf_counter() - routing_start
+
+        route = decision["route"]
+
+        print(f"\nRouter selected: {route}")
+        print(f"Routing reason: {decision['reason']}")
 
     print(f"\nRunning the {route} pipeline...")
 
@@ -72,6 +84,7 @@ def main():
     timings = result["timings"]
 
     print("\nTiming breakdown:")
+    print(f"Routing: {routing_seconds:.6f} seconds")
     print(f"Question embedding: {timings['embedding_seconds']:.3f} seconds")
     print(f"Retrieval + fusion: {timings['retrieval_seconds']:.3f} seconds")
     print(
