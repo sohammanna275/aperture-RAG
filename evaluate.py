@@ -6,9 +6,8 @@ from statistics import mean
 
 from evaluation_io import execute_and_save, save_record
 
-from main import (
-    MODEL_NAME,
-    EMBEDDING_MODEL,
+from config import MODEL_NAME, EMBEDDING_MODEL
+from pipelines import (
     run_direct,
     run_standard_rag,
     run_deep_rag,

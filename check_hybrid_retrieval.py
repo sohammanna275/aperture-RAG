@@ -1,7 +1,6 @@
-from pathlib import Path
-
 from database import search_chunks, search_keyword_chunks
-from main import DOCUMENT_PATH, EMBEDDING_MODEL, generate_embeddings
+from config import DOCUMENT_PATH, EMBEDDING_MODEL, PROJECT_DIR
+from model_client import generate_embeddings
 from retrieval import reciprocal_rank_fusion
 
 
@@ -12,8 +11,7 @@ def main():
         print("Please enter a non-empty question.")
         return
 
-    project_dir = Path(__file__).resolve().parent
-    document_path = DOCUMENT_PATH.relative_to(project_dir).as_posix()
+    document_path = DOCUMENT_PATH.relative_to(PROJECT_DIR).as_posix()
 
     candidate_k = 3
     final_k = 2

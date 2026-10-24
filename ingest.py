@@ -1,16 +1,10 @@
-from pathlib import Path
-
 from pgvector import Vector
 from pgvector.psycopg import register_vector
 
 from database import get_connection
-from main import (
-    DOCUMENT_PATH,
-    EMBEDDING_MODEL,
-    load_document,
-    chunk_document,
-    generate_embeddings,
-)
+from config import DOCUMENT_PATH, EMBEDDING_MODEL, PROJECT_DIR
+from documents import load_document, chunk_document
+from model_client import generate_embeddings
 
 
 def ingest_document():
@@ -22,8 +16,7 @@ def ingest_document():
 
     embeddings = generate_embeddings(chunks)
 
-    project_dir = Path(__file__).resolve().parent
-    document_path = DOCUMENT_PATH.relative_to(project_dir).as_posix()
+    document_path = DOCUMENT_PATH.relative_to(PROJECT_DIR).as_posix()
 
     rows = []
 

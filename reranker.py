@@ -4,7 +4,7 @@ from sentence_transformers import CrossEncoder
 from torch.nn import Identity
 
 
-RERANKER_MODEL = "cross-encoder/ms-marco-MiniLM-L6-v2"
+from config import RERANKER_MODEL
 
 
 @lru_cache(maxsize=1)

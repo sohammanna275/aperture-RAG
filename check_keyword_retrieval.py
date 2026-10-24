@@ -1,7 +1,5 @@
-from pathlib import Path
-
 from database import search_keyword_chunks
-from main import DOCUMENT_PATH
+from config import DOCUMENT_PATH, PROJECT_DIR
 
 
 def main():
@@ -11,8 +9,7 @@ def main():
         print("Please enter a non-empty query.")
         return
 
-    project_dir = Path(__file__).resolve().parent
-    document_path = DOCUMENT_PATH.relative_to(project_dir).as_posix()
+    document_path = DOCUMENT_PATH.relative_to(PROJECT_DIR).as_posix()
 
     results = search_keyword_chunks(
         question=question,

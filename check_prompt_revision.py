@@ -5,7 +5,9 @@ from pathlib import Path
 
 from evaluate import ask_grade
 from evaluation_io import execute_and_save, save_record
-from main import MODEL_NAME, build_prompt, generate_answer
+from config import MODEL_NAME
+from prompts import build_prompt
+from model_client import generate_answer
 
 
 PROJECT_DIR = Path(__file__).resolve().parent

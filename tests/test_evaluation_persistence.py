@@ -41,14 +41,20 @@ class EvaluationPersistenceTests(unittest.TestCase):
             "answer": "Starter: 3; Pro: 20", "retrieved_chunks": [],
             "input_tokens": 10, "output_tokens": 8,
         }
-        fake_main = types.ModuleType("main")
-        fake_main.MODEL_NAME = "fake-generator"
-        fake_main.EMBEDDING_MODEL = "fake-embedding"
+        fake_config = types.ModuleType("config")
+        fake_config.MODEL_NAME = "fake-generator"
+        fake_config.EMBEDDING_MODEL = "fake-embedding"
+        fake_pipelines = types.ModuleType("pipelines")
         for route in ("direct", "standard_rag", "deep_rag"):
-            setattr(fake_main, f"run_{route}", Mock(return_value=self.result))
-        fake_main.build_prompt = lambda question, context, version: f"{version}:{question}:{context}"
-        fake_main.generate_answer = Mock(return_value=self.result)
-        with patch.dict(sys.modules, {"main": fake_main}):
+            setattr(fake_pipelines, f"run_{route}", Mock(return_value=self.result))
+        fake_prompts = types.ModuleType("prompts")
+        fake_prompts.build_prompt = lambda question, context, version: f"{version}:{question}:{context}"
+        fake_client = types.ModuleType("model_client")
+        fake_client.generate_answer = Mock(return_value=self.result)
+        with patch.dict(sys.modules, {
+            "config": fake_config, "pipelines": fake_pipelines,
+            "prompts": fake_prompts, "model_client": fake_client,
+        }):
             self.evaluator = load_module("tested_evaluator", "evaluate.py")
             with patch.dict(sys.modules, {"evaluate": self.evaluator}):
                 self.experiment = load_module("tested_experiment", "check_prompt_revision.py")
