@@ -1,8 +1,10 @@
+import argparse
 import json
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from statistics import mean
+
+from evaluation_io import execute_and_save, save_record
 
 from main import (
     MODEL_NAME,
@@ -78,13 +80,23 @@ def print_summary(records):
 
         print(f"Ungraded successful calls: {ungraded}")
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Evaluate all three pipelines.")
+    parser.add_argument(
+        "--no-grade", action="store_true",
+        help="Save answers and metrics without asking for manual grades.",
+    )
+    args = parser.parse_args(argv)
+
     cases = json.loads(CASES_PATH.read_text(encoding="utf-8"))
 
     OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
     output_path = OUTPUT_DIR / f"{run_id}.jsonl"
+    raw_dir = OUTPUT_DIR / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = raw_dir / f"{run_id}.jsonl"
 
     route_names = list(PIPELINES)
     records = []
@@ -92,8 +104,12 @@ def main():
     print(f"Cases: {len(cases)}")
     print(f"Pipeline calls: {len(cases) * len(PIPELINES)}")
     print(f"Saving results to: {output_path}")
+    print(f"Raw results (saved before grading): {raw_path}")
 
-    with output_path.open("x", encoding="utf-8") as output:
+    with (
+        output_path.open("x", encoding="utf-8") as output,
+        raw_path.open("x", encoding="utf-8") as raw_output,
+    ):
         for case_index, case in enumerate(cases):
             offset = case_index % len(route_names)
             ordered_routes = route_names[offset:] + route_names[:offset]
@@ -112,19 +128,15 @@ def main():
                     "answer_correct": None,
                 }
 
-                started = time.perf_counter()
-
-                try:
-                    result = PIPELINES[route](case["question"])
-                except Exception as error:
-                    record["elapsed_seconds"] = time.perf_counter() - started
-                    record["status"] = "error"
-                    record["error"] = f"{type(error).__name__}: {error}"
+                succeeded = execute_and_save(
+                    record,
+                    lambda: PIPELINES[route](case["question"]),
+                    raw_output,
+                )
+                if not succeeded:
                     print(f"Failed: {record['error']}")
                 else:
-                    record["elapsed_seconds"] = time.perf_counter() - started
-                    record["status"] = "ok"
-                    record["result"] = result
+                    result = record["result"]
 
                     print(f"\nAnswer:\n{result['answer']}")
                     print(f"\nReference:\n{case['reference']}")
@@ -137,10 +149,10 @@ def main():
                         print(f"\n[Chunk {item['chunk_id']}]")
                         print(item["text"])
 
-                    record["answer_correct"] = ask_grade()
+                    if not args.no_grade:
+                        record["answer_correct"] = ask_grade()
 
-                output.write(json.dumps(record, ensure_ascii=False) + "\n")
-                output.flush()
+                save_record(output, record)
                 records.append(record)
 
     print_summary(records)
@@ -148,4 +160,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nStopped. Completed calls remain in the raw results file printed above.")
+        raise SystemExit(130)

@@ -1,0 +1,8 @@
+# Direct runtime dependencies from the working Windows environment.
+# This is not a complete transitive dependency lock.
+requests==2.34.2
+psycopg[binary]==3.3.6
+pgvector==0.5.1
+python-dotenv==1.2.4
+sentence-transformers==6.2.0
+torch==2.14.1

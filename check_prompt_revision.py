@@ -1,8 +1,10 @@
+import argparse
 import json
 from datetime import datetime, timezone
 from pathlib import Path
 
 from evaluate import ask_grade
+from evaluation_io import execute_and_save, save_record
 from main import MODEL_NAME, build_prompt, generate_answer
 
 
@@ -15,7 +17,14 @@ BASELINE_PATH = (
 )
 
 
-def main():
+def main(argv=None):
+    parser = argparse.ArgumentParser(description="Compare prompt versions on saved context.")
+    parser.add_argument(
+        "--no-grade", action="store_true",
+        help="Save answers and metrics without asking for manual grades.",
+    )
+    args = parser.parse_args(argv)
+
     records = [
         json.loads(line)
         for line in BASELINE_PATH.read_text(encoding="utf-8").splitlines()
@@ -29,7 +38,7 @@ def main():
         and record["status"] == "ok"
     ]
 
-    if len(targets) != 2:
+    if len(targets) != 2 or {target["route"] for target in targets} != {"standard", "deep"}:
         raise ValueError("Expected one Standard and one Deep baseline result.")
 
     output_dir = PROJECT_DIR / "prompt_experiments"
@@ -37,8 +46,16 @@ def main():
 
     run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S_%fZ")
     output_path = output_dir / f"{run_id}.jsonl"
+    raw_dir = output_dir / "raw"
+    raw_dir.mkdir(parents=True, exist_ok=True)
+    raw_path = raw_dir / f"{run_id}.jsonl"
+    print(f"Saving experiment to: {output_path}")
+    print(f"Raw results (saved before grading): {raw_path}")
 
-    with output_path.open("x", encoding="utf-8") as output:
+    with (
+        output_path.open("x", encoding="utf-8") as output,
+        raw_path.open("x", encoding="utf-8") as raw_output,
+    ):
         for target in targets:
             question = target["case"]["question"]
             context = "\n\n".join(
@@ -59,13 +76,6 @@ def main():
                     )
 
                     prompt = build_prompt(question, context, version=version)
-                    result = generate_answer(prompt)
-
-                    print(f"\n{result['answer']}")
-                    print(f"\nReference: {target['case']['reference']}")
-
-                    grade = ask_grade()
-
                     record = {
                         "baseline_file": BASELINE_PATH.name,
                         "case_id": target["case"]["id"],
@@ -76,17 +86,30 @@ def main():
                         "prompt": prompt,
                         "generation_model": MODEL_NAME,
                         "repeat": repeat + 1,
-                        "answer_correct": grade,
-                        "result": result,
+                        "answer_correct": None,
                     }
 
-                    output.write(
-                        json.dumps(record, ensure_ascii=False) + "\n"
+                    succeeded = execute_and_save(
+                        record,
+                        lambda: generate_answer(prompt),
+                        raw_output,
                     )
-                    output.flush()
+                    if succeeded:
+                        print(f"\n{record['result']['answer']}")
+                        print(f"\nReference: {target['case']['reference']}")
+                        if not args.no_grade:
+                            record["answer_correct"] = ask_grade()
+                    else:
+                        print(f"Failed: {record['error']}")
+
+                    save_record(output, record)
 
     print(f"\nSaved experiment: {output_path}")
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main()
+    except KeyboardInterrupt:
+        print("\nStopped. Completed calls remain in the raw results file printed above.")
+        raise SystemExit(130)
