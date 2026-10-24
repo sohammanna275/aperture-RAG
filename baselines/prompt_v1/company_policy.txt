@@ -1,0 +1,11 @@
+Nimbus is a fictional company used for this demonstration.
+
+Nimbus Starter plan:
+- Audit logs are retained for 7 days.
+- A workspace supports up to 3 users.
+- Single sign-on is not included.
+
+Nimbus Pro plan:
+- Audit logs are retained for 30 days.
+- A workspace supports up to 20 users.
+- Single sign-on is included.

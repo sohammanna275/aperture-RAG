@@ -1,0 +1,50 @@
+[
+  {
+    "id": "policy_01",
+    "category": "document",
+    "question": "Does Nimbus Starter include single sign-on?",
+    "reference": "No. Nimbus Starter does not include single sign-on."
+  },
+  {
+    "id": "policy_02",
+    "category": "document",
+    "question": "Does Nimbus Pro include single sign-on?",
+    "reference": "Yes. Nimbus Pro includes single sign-on."
+  },
+  {
+    "id": "policy_03",
+    "category": "document",
+    "question": "How long does Nimbus Starter retain audit logs?",
+    "reference": "7 days."
+  },
+  {
+    "id": "policy_04",
+    "category": "document",
+    "question": "How long does Nimbus Pro retain audit logs?",
+    "reference": "30 days."
+  },
+  {
+    "id": "policy_05",
+    "category": "document",
+    "question": "How many users do Nimbus Starter and Nimbus Pro support?",
+    "reference": "Starter supports up to 3 users; Pro supports up to 20 users. Both values must be assigned to the correct plan."
+  },
+  {
+    "id": "unknown_01",
+    "category": "unanswerable",
+    "question": "Who is the CEO of Nimbus?",
+    "reference": "Acknowledge that the available information does not identify the CEO. Do not invent a name."
+  },
+  {
+    "id": "general_01",
+    "category": "general",
+    "question": "What is a Python list?",
+    "reference": "An ordered, mutable collection of items. Equivalent wording is acceptable."
+  },
+  {
+    "id": "general_02",
+    "category": "general",
+    "question": "What is 12 multiplied by 8?",
+    "reference": "96."
+  }
+]
