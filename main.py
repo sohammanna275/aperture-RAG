@@ -2,6 +2,9 @@ import time
 import math
 from pathlib import Path
 import requests
+import psycopg
+from database import search_chunks
+
 OLLAMA_URL = "http://localhost:11434/api/generate"
 MODEL_NAME = "qwen2.5:1.5b"
 DOCUMENT_PATH = Path(__file__).resolve().parent / "data" / "company_policy.txt"
@@ -147,23 +150,23 @@ def run_direct(question):
 
 
 def run_standard_rag(question):
-    document = load_document()
-
-    if not document:
-        raise ValueError("The document is empty.")
-
-    chunks = chunk_document(document)
-
-    chunk_embeddings = generate_embeddings(chunks)
     question_embedding = generate_embeddings([question])[0]
 
-    ranked_chunks = rank_chunks(
-        question_embedding,
-        chunks,
-        chunk_embeddings,
+    project_dir = Path(__file__).resolve().parent
+    document_path = DOCUMENT_PATH.relative_to(project_dir).as_posix()
+
+    selected_chunks = search_chunks(
+        question_embedding=question_embedding,
+        document_path=document_path,
+        embedding_model=EMBEDDING_MODEL,
+        top_k=2,
     )
 
-    selected_chunks = ranked_chunks[:2]
+    if not selected_chunks:
+        raise ValueError(
+            "No saved chunks match this document and embedding model. "
+            "Run python ingest.py first."
+        )
 
     selected_context = "\n\n".join(
         item["text"] for item in selected_chunks
@@ -173,11 +176,10 @@ def run_standard_rag(question):
     result = generate_answer(prompt)
 
     result["pipeline"] = "standard"
-    result["ranking"] = ranked_chunks
+    result["ranking"] = selected_chunks
     result["retrieved_chunks"] = selected_chunks
 
     return result
-
 
 def main():
     print("Aperture — Adaptive RAG Router")
@@ -201,14 +203,19 @@ def main():
             result = run_direct(question)
         else:
             result = run_standard_rag(question)
-    except (requests.exceptions.RequestException, OSError, ValueError) as error:
+    except (
+        requests.exceptions.RequestException,
+        psycopg.Error,
+        OSError,
+        ValueError,
+    ) as error:
         print(f"Pipeline failed: {error}")
         return
 
     print(f"\nPipeline used: {result['pipeline']}")
 
     if result["ranking"]:
-        print("\nRetrieval ranking:")
+        print("\nRetrieved results (top matches):")
 
         for rank, item in enumerate(result["ranking"], start=1):
             print(
