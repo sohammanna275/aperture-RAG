@@ -140,27 +140,41 @@ def generate_answer(prompt):
     }
 
 def run_direct(question):
+    pipeline_start = time.perf_counter()
+
     result = generate_answer(question)
 
     result["pipeline"] = "direct"
     result["ranking"] = []
     result["retrieved_chunks"] = []
 
+    result["timings"] = {
+        "embedding_seconds": 0.0,
+        "retrieval_seconds": 0.0,
+        "generation_seconds": result["latency_seconds"],
+        "total_seconds": time.perf_counter() - pipeline_start,
+    }
+
     return result
 
-
 def run_standard_rag(question):
+    pipeline_start = time.perf_counter()
+
+    embedding_start = time.perf_counter()
     question_embedding = generate_embeddings([question])[0]
+    embedding_seconds = time.perf_counter() - embedding_start
 
     project_dir = Path(__file__).resolve().parent
     document_path = DOCUMENT_PATH.relative_to(project_dir).as_posix()
 
+    retrieval_start = time.perf_counter()
     selected_chunks = search_chunks(
         question_embedding=question_embedding,
         document_path=document_path,
         embedding_model=EMBEDDING_MODEL,
         top_k=2,
     )
+    retrieval_seconds = time.perf_counter() - retrieval_start
 
     if not selected_chunks:
         raise ValueError(
@@ -178,6 +192,13 @@ def run_standard_rag(question):
     result["pipeline"] = "standard"
     result["ranking"] = selected_chunks
     result["retrieved_chunks"] = selected_chunks
+
+    result["timings"] = {
+        "embedding_seconds": embedding_seconds,
+        "retrieval_seconds": retrieval_seconds,
+        "generation_seconds": result["latency_seconds"],
+        "total_seconds": time.perf_counter() - pipeline_start,
+    }
 
     return result
 
@@ -233,8 +254,15 @@ def main():
         print(item["text"])
 
     print(f"\nAperture: {result['answer']}")
-    print(f"\nGeneration request time: {result['latency_seconds']:.2f} seconds")
-    print(f"Generation input tokens: {result['input_tokens']}")
+    timings = result["timings"]
+
+    print("\nTiming breakdown:")
+    print(f"Question embedding: {timings['embedding_seconds']:.3f} seconds")
+    print(f"Retrieval: {timings['retrieval_seconds']:.3f} seconds")
+    print(f"Generation request: {timings['generation_seconds']:.3f} seconds")
+    print(f"Total pipeline: {timings['total_seconds']:.3f} seconds")
+
+    print(f"\nGeneration input tokens: {result['input_tokens']}")
     print(f"Generation output tokens: {result['output_tokens']}")
 
 if __name__ == "__main__":

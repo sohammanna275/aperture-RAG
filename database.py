@@ -79,6 +79,50 @@ def search_chunks(
 
     return results
 
+def search_keyword_chunks(question, document_path, top_k=2):
+    if not question.strip():
+        raise ValueError("The keyword query must not be empty.")
+
+    if top_k < 1:
+        raise ValueError("top_k must be at least 1.")
+
+    with get_connection() as connection:
+        with connection.cursor() as cursor:
+            cursor.execute(
+                """
+                WITH query AS (
+                    SELECT plainto_tsquery('english', %s) AS terms
+                )
+                SELECT
+                    chunks.id,
+                    chunks.chunk_index,
+                    chunks.content,
+                    ts_rank_cd(chunks.search_vector, query.terms) AS score
+                FROM document_chunks AS chunks
+                CROSS JOIN query
+                WHERE chunks.document_path = %s
+                  AND chunks.search_vector @@ query.terms
+                ORDER BY score DESC, chunks.chunk_index ASC
+                LIMIT %s
+                """,
+                (question, document_path, top_k),
+            )
+            rows = cursor.fetchall()
+
+    results = []
+
+    for database_id, chunk_index, content, score in rows:
+        results.append(
+            {
+                "database_id": database_id,
+                "chunk_id": chunk_index,
+                "text": content,
+                "score": score,
+            }
+        )
+
+    return results
+
 
 if __name__ == "__main__":
     with get_connection() as connection:
